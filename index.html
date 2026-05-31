@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShiftLog — Daily Job Timesheet</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-mark">SL</span>
+        <span class="logo-text">ShiftLog</span>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-view="log">
+          <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Log
+        </button>
+        <button class="nav-btn" data-view="timesheet">
+          <svg viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Timesheet
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="dark-toggle" id="darkToggle" title="Toggle dark mode">
+          <svg class="sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- VIEW: LOG -->
+      <section class="view active" id="view-log">
+        <header class="view-header">
+          <div>
+            <h1>Daily Log</h1>
+            <p class="subtitle" id="todayDate"></p>
+          </div>
+          <div class="header-stats">
+            <div class="stat">
+              <span class="stat-num" id="totalShifts">0</span>
+              <span class="stat-label">shifts total</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Add Shift Form -->
+        <div class="card form-card">
+          <h2 class="card-title">Add Shift</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="shiftDate">Date</label>
+              <input type="date" id="shiftDate" />
+            </div>
+            <div class="field">
+              <label for="startTime">Start Time</label>
+              <input type="time" id="startTime" />
+            </div>
+            <div class="field">
+              <label for="endTime">End Time</label>
+              <input type="time" id="endTime" />
+            </div>
+            <div class="field field-note">
+              <label for="shiftNote">Note (optional)</label>
+              <input type="text" id="shiftNote" placeholder="Job site, task…" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <div id="overlapWarn" class="overlap-warn hidden">⚠ This shift overlaps with an existing shift on this day.</div>
+            <button class="btn btn-primary" id="addShiftBtn">+ Add Shift</button>
+          </div>
+        </div>
+
+        <!-- Log Table -->
+        <div class="card table-card">
+          <div class="table-header">
+            <h2 class="card-title">All Entries</h2>
+            <button class="btn btn-ghost btn-sm" id="exportCsvBtn">↓ Export CSV</button>
+          </div>
+          <div class="table-wrap">
+            <table id="logTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Duration</th>
+                  <th>Note</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="logBody">
+              </tbody>
+            </table>
+            <div class="empty-state hidden" id="emptyState">
+              <span>No shifts logged yet. Add your first shift above.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: TIMESHEET -->
+      <section class="view" id="view-timesheet">
+        <header class="view-header">
+          <div>
+            <h1>Timesheet</h1>
+            <p class="subtitle">Filter by range and export PDF</p>
+          </div>
+        </header>
+
+        <!-- Filter -->
+        <div class="card filter-card">
+          <h2 class="card-title">Date Range</h2>
+          <div class="filter-grid">
+            <div class="field">
+              <label for="filterStart">From</label>
+              <input type="date" id="filterStart" />
+            </div>
+            <div class="field">
+              <label for="filterEnd">To</label>
+              <input type="date" id="filterEnd" />
+            </div>
+            <div class="field field-presets">
+              <label>Quick Select</label>
+              <div class="preset-btns">
+                <button class="btn btn-ghost btn-sm" id="preset2w">Bi-weekly</button>
+                <button class="btn btn-ghost btn-sm" id="presetMonth">This Month</button>
+                <button class="btn btn-ghost btn-sm" id="presetWeek">This Week</button>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="filterBtn">Apply Filter</button>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-bar" id="summaryBar">
+          <div class="summary-item">
+            <span class="summary-num" id="sumDays">0</span>
+            <span class="summary-label">days worked</span>
+          </div>
+          <div class="summary-div"></div>
+          <div class="summary-item">
+            <span class="summary-num" id="sumShifts">0</span>
+            <span class="summary-label">total shifts</span>
+          </div>
+          <div class="summary-div"></div>
+          <div class="summary-item">
+            <span class="summary-num" id="sumHours">0h 00m</span>
+            <span class="summary-label">total hours</span>
+          </div>
+          <button class="btn btn-accent" id="genPdfBtn">Generate PDF</button>
+        </div>
+
+        <!-- Timesheet Table -->
+        <div class="card table-card">
+          <h2 class="card-title">Preview</h2>
+          <div class="table-wrap">
+            <table id="tsTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Shifts</th>
+                  <th>Total Hours</th>
+                </tr>
+              </thead>
+              <tbody id="tsBody">
+              </tbody>
+            </table>
+            <div class="empty-state hidden" id="tsEmpty">
+              <span>No shifts in selected range.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay hidden" id="editModal">
+    <div class="modal">
+      <h2>Edit Shift</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="editDate" />
+        </div>
+        <div class="field">
+          <label>Start Time</label>
+          <input type="time" id="editStart" />
+        </div>
+        <div class="field">
+          <label>End Time</label>
+          <input type="time" id="editEnd" />
+        </div>
+        <div class="field field-note">
+          <label>Note</label>
+          <input type="text" id="editNote" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancelEdit">Cancel</button>
+        <button class="btn btn-primary" id="saveEdit">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
